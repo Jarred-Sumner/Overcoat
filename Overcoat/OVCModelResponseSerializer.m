@@ -116,7 +116,7 @@
 - (void)saveResult:(id)result {
     NSParameterAssert(result);
     
-    [MagicalRecord saveWithBlock:^(NSManagedObjectContext *localContext) {
+    [MagicalRecord saveUsingCurrentThreadContextWithBlockAndWait:^(NSManagedObjectContext *localContext) {
         NSArray *models = [result isKindOfClass:[NSArray class]] ? result : @[result];
         for (MTLModel<MTLManagedObjectSerializing> *model in models) {
             NSError *error = nil;
@@ -125,7 +125,7 @@
                                                       error:&error];
             NSAssert(error == nil, @"%@ saveResult failed with error: %@", self, error);
         }
-    } completion:NULL];
+    }];
     
 }
 
