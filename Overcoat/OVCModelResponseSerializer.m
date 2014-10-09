@@ -42,10 +42,7 @@
 
 @implementation OVCModelResponseSerializer
 
-+ (instancetype)serializerWithURLMatcher:(OVCURLMatcher *)URLMatcher
-                    managedObjectContext:(NSManagedObjectContext *)managedObjectContext
-                           responseClass:(Class)responseClass
-                         errorModelClass:(Class)errorModelClass
++ (instancetype)serializerWithURLMatcher:(OVCURLMatcher *)URLMatcher responseClassURLMatcher:(OVCURLMatcher *)URLResponseClassMatcher managedObjectContext:(NSManagedObjectContext *)managedObjectContext responseClass:(Class)responseClass errorModelClass:(Class)errorModelClass {
 {
     NSParameterAssert([responseClass isSubclassOfClass:[OVCResponse class]]);
     
