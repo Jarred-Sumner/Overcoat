@@ -20,6 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#import <CoreData+MagicalRecord.h>
 #import "OVCModelResponseSerializer.h"
 #import "OVCResponse.h"
 #import "OVCURLMatcher.h"
@@ -33,7 +34,6 @@
 @interface OVCModelResponseSerializer ()
 
 @property (strong, nonatomic) OVCURLMatcher *URLMatcher;
-@property (strong, nonatomic) OVCURLMatcher *URLResponseClassMatcher;
 @property (strong, nonatomic) NSManagedObjectContext *managedObjectContext;
 @property (nonatomic) Class responseClass;
 @property (nonatomic) Class errorModelClass;
@@ -43,7 +43,6 @@
 @implementation OVCModelResponseSerializer
 
 + (instancetype)serializerWithURLMatcher:(OVCURLMatcher *)URLMatcher
-                 responseClassURLMatcher:(OVCURLMatcher *)URLResponseClassMatcher
                     managedObjectContext:(NSManagedObjectContext *)managedObjectContext
                            responseClass:(Class)responseClass
                          errorModelClass:(Class)errorModelClass
@@ -56,7 +55,6 @@
     
     OVCModelResponseSerializer *serializer = [self serializerWithReadingOptions:0];
     serializer.URLMatcher = URLMatcher;
-    serializer.URLResponseClassMatcher = URLResponseClassMatcher;
     serializer.managedObjectContext = managedObjectContext;
     serializer.responseClass = responseClass;
     serializer.errorModelClass = errorModelClass;
@@ -83,24 +81,16 @@
     
     NSHTTPURLResponse *HTTPResponse = (NSHTTPURLResponse *)response;
     Class resultClass = Nil;
-    Class responseClass = Nil;
     
     if (!serializationError) {
         resultClass = [self.URLMatcher modelClassForURL:HTTPResponse.URL];
-        
-        if (self.URLResponseClassMatcher) {
-            responseClass = [self.URLResponseClassMatcher modelClassForURL:HTTPResponse.URL];
-        } else if (self.responseClass) {
-            responseClass = self.responseClass;
-        } 
     } else {
         resultClass = self.errorModelClass;
-        responseClass = self.responseClass;
     }
     
-    OVCResponse *responseObject = [responseClass responseWithHTTPResponse:HTTPResponse
-                                                               JSONObject:JSONObject
-                                                              resultClass:resultClass];
+    OVCResponse *responseObject = [self.responseClass responseWithHTTPResponse:HTTPResponse
+                                                                    JSONObject:JSONObject
+                                                                   resultClass:resultClass];
     
     if (self.managedObjectContext) {
         id result = nil;
@@ -129,24 +119,18 @@
 - (void)saveResult:(id)result {
     NSParameterAssert(result);
     
-    NSArray *models = [result isKindOfClass:[NSArray class]] ? result : @[result];
-    for (MTLModel<MTLManagedObjectSerializing> *model in models) {
-        NSError *error = nil;
-        [MTLManagedObjectAdapter managedObjectFromModel:model
-                                   insertingIntoContext:self.managedObjectContext
-                                                  error:&error];
-        NSAssert(error == nil, @"%@ saveResult failed with error: %@", self, error);
-    }
-    
-    NSManagedObjectContext *context = self.managedObjectContext;
-    
-    [context performBlockAndWait:^{
-        if ([context hasChanges]) {
+    [MagicalRecord saveWithBlock:^(NSManagedObjectContext *localContext) {
+        NSArray *models = [result isKindOfClass:[NSArray class]] ? result : @[result];
+        for (MTLModel<MTLManagedObjectSerializing> *model in models) {
             NSError *error = nil;
-            [context save:&error];
+            [MTLManagedObjectAdapter managedObjectFromModel:model
+                                       insertingIntoContext:localContext
+                                                      error:&error];
             NSAssert(error == nil, @"%@ saveResult failed with error: %@", self, error);
         }
-    }];
+    } completion:NULL];
+    
 }
 
 @end
+
